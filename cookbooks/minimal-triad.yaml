@@ -1,0 +1,4 @@
+id: minimal-triad
+description: Facade + PMO + one Scope stage office (pack-free)
+stages:
+  - scope

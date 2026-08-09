@@ -1,0 +1,15 @@
+---
+description: Agent loops — TDD, verify, adversarial review
+globs:
+alwaysApply: true
+---
+
+# Agent loops
+
+| Loop | Question | Owner |
+|------|----------|-------|
+| Strict TDD | Does the code match intended behavior? | Implementer |
+| Verify | Were tests and spec followed? | Implementer |
+| Adversarial review | Does the contract lie? | Implementer; Security when triggered |
+
+Prefer behavior-first tests. Do not weaken asserts to force green.

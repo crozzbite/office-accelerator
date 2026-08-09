@@ -1,0 +1,13 @@
+---
+description: Office accelerator runtime — boot pack-free offices via MCP
+globs:
+alwaysApply: true
+---
+
+# Office runtime (accelerator)
+
+1. Point MCP root (`SKFLOW_ROOT`) at this target's manifests/schemas.
+2. List offices; resolve identity with **inject_pack: false** always.
+3. Topology: OfficeFacade → OfficePmo → one active stage office at a time.
+4. Personality packs are **not** part of this formula — do not inject branded voices.
+5. Human gates: commit / PR / merge / deploy stay with the human.

@@ -1,0 +1,25 @@
+# Example params — greenfield Cursor target with bundled neutral rules
+org_name: ExampleOrg
+product_name: ExampleProduct
+id_prefix: Office
+enable_packs: false
+enable_rules: true
+# rules_source_dir: ./path/to/my-rules   # only used when enable_rules: false
+stage_keys:
+  - scope
+  - architecture
+  - experience
+  - engineering
+  - quality
+  - deploy
+  - production
+  - improve
+mcp_allowlist:
+  - engram
+skills_allowlist:
+  - sdd-explore
+  - sdd-propose
+  - sdd-spec
+  - sdd-design
+  - sdd-apply
+  - sdd-verify

@@ -1,0 +1,13 @@
+---
+description: Neutral tri-role routing (Architect / Implementer / Security Guardian)
+globs:
+alwaysApply: true
+---
+
+# Tri-role
+
+- Architect owns canon and design authority.
+- Implementer owns execution and verify loops.
+- Security Guardian can veto merge/deploy on security defects; does not replace Architect/Implementer.
+
+Infer role from intent when no `@` prefix is given.

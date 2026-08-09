@@ -1,0 +1,11 @@
+id: sdlc-8-stages
+description: Facade + PMO + eight SDLC stage offices (pack-free)
+stages:
+  - scope
+  - architecture
+  - experience
+  - engineering
+  - quality
+  - deploy
+  - production
+  - improve

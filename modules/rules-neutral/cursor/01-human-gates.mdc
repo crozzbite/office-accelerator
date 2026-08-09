@@ -1,0 +1,16 @@
+---
+description: Human gates — commit, PR, merge, deploy
+globs:
+alwaysApply: true
+---
+
+# Human gates
+
+Agent prepares; human executes:
+
+1. commit
+2. pull request
+3. merge
+4. deploy
+
+Do not push, merge, or deploy without explicit Human Go.

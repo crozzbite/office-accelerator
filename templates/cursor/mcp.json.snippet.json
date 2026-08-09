@@ -1,0 +1,12 @@
+{
+  "office-agents": {
+    "command": "node",
+    "args": [
+      "REPLACE_WITH_SKULLRENDER_AGENTS_BUNDLE/cli.js",
+      "mcp"
+    ],
+    "env": {
+      "SKFLOW_ROOT": "REPLACE_WITH_OUT_TARGET"
+    }
+  }
+}
