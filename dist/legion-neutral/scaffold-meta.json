@@ -1,0 +1,19 @@
+{
+  "cookbook": "sdlc-8-stages",
+  "enable_rules": false,
+  "enable_packs": false,
+  "org_name": "PortableOrg",
+  "product_name": "PortableGovernance",
+  "manifests": [
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficeFacade.yaml",
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficePmo.yaml",
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficeScope.yaml",
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficeArchitecture.yaml",
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficeExperience.yaml",
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficeEngineering.yaml",
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficeQuality.yaml",
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficeDeploy.yaml",
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficeProduction.yaml",
+    "C:/Users/zzorc/OneDrive/Desktop/WorkDesktop/office-accelerator/out/legion-neutral/manifests/OfficeImprove.yaml"
+  ]
+}

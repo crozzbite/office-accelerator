@@ -5,11 +5,11 @@ export function stringifyYaml(doc: unknown, indent = 0): string {
   if (doc === null || doc === undefined) return "null";
   if (typeof doc === "boolean" || typeof doc === "number") return String(doc);
   if (typeof doc === "string") {
-    if (doc.includes("\n") || /[:#{}[\],&*?|>!%@`]/.test(doc)) {
+    // Prefer quoted scalars over "|" for single-line strings (avoids list indent bugs).
+    if (doc.includes("\n")) {
       const lines = doc.split("\n");
       return `|\n${lines.map((l) => `${"  ".repeat(indent + 1)}${l}`).join("\n")}`;
     }
-    // bare words without spaces stay unquoted for readable manifests
     if (/^[A-Za-z0-9_.-]+$/.test(doc)) return doc;
     return JSON.stringify(doc);
   }
@@ -21,7 +21,12 @@ export function stringifyYaml(doc: unknown, indent = 0): string {
           const inner = stringifyYaml(item, indent + 1);
           return `${pad}- ${inner.replace(/^\s+/, "")}`;
         }
-        return `${pad}- ${stringifyYaml(item, 0)}`;
+        // Pass array indent so block scalars (|) indent under "- |"
+        const rendered = stringifyYaml(item, indent);
+        if (rendered.startsWith("|")) {
+          return `${pad}- ${rendered}`;
+        }
+        return `${pad}- ${rendered}`;
       })
       .join("\n");
   }

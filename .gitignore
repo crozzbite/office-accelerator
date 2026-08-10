@@ -4,3 +4,5 @@ out/**
 *.log
 .DS_Store
 .atl/
+# Local VS Code MCP copy (ship: templates/mcp.vscode.json.example)
+.vscode/mcp.json

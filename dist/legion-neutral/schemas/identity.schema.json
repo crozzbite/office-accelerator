@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "office-accelerator://schemas/identity/v1",
+  "title": "OfficeAcceleratorIdentity",
+  "description": "Pack-free office identity (spine | saep | sae). Personality packs are out of scope for this accelerator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "office", "reports_to", "personality_pack_default"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "display_name": { "type": "string" },
+    "office": {
+      "type": "string",
+      "enum": ["spine", "saep", "sae"]
+    },
+    "stage": { "type": "string" },
+    "summary": { "type": "string" },
+    "reports_to": { "type": "string" },
+    "handoff_owner": { "type": "boolean", "default": false },
+    "rasci_rows": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tools": { "type": "array", "items": { "type": "string" } },
+        "mcp": { "type": "array", "items": { "type": "string" } },
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "rules": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "personality_pack_default": {
+      "type": "boolean",
+      "const": false,
+      "description": "Accelerator always emits false — packs are not part of the formula."
+    },
+    "must": { "type": "array", "items": { "type": "string" } },
+    "never": { "type": "array", "items": { "type": "string" } }
+  }
+}

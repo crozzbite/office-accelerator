@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "name": "governance-A",
+      "path": ".."
+    },
+    {
+      "name": "offices-B",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "chat.useAgentsMdFile": true,
+    "chat.useCustomizationsInParentRepositories": true
+  }
+}

@@ -2,12 +2,14 @@
   "name": "office-accelerator",
   "version": "0.1.0",
   "private": true,
-  "description": "IaC-like accelerator: pack-free Cursor office manifests + optional neutral rules",
+  "description": "IaC-like accelerator: pack-free Office* manifests for VS Code Copilot / Cursor (Scope B)",
   "type": "module",
   "scripts": {
     "scaffold": "bun run src/scaffold.ts",
     "test": "bun test tests/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "promote:neutral": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/promote-legion-neutral.ps1",
+    "smoke:neutral": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/smoke-offices.ps1"
   },
   "dependencies": {},
   "devDependencies": {

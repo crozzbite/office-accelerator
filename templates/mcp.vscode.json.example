@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "offices-neutral": {
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/mcp-offices.ps1"
+      ]
+    }
+  }
+}

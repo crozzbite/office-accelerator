@@ -1,0 +1,22 @@
+# Scope B — VS Code neutral offices (pack-free)
+# Cookbook: sdlc-8-stages (frozen Fase 0). BYO rules = Capa A (enable_rules: false).
+org_name: PortableOrg
+product_name: PortableGovernance
+id_prefix: Office
+enable_packs: false
+enable_rules: false
+stage_keys:
+  - scope
+  - architecture
+  - experience
+  - engineering
+  - quality
+  - deploy
+  - production
+  - improve
+mcp_allowlist:
+  - engram
+skills_allowlist:
+  - sdd-explore
+  - sdd-apply
+  - sdd-verify

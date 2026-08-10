@@ -100,6 +100,34 @@ stage_keys:
     expect(result.manifests.length).toBe(10);
   });
 
+  test("vsc-neutral Pmo must-lines are valid quoted YAML (no broken | block)", () => {
+    const out = mkdtempSync(join(tmpdir(), "oa-vsc-"));
+    scaffold({
+      paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+      cookbookId: "sdlc-8-stages",
+      outDir: out,
+    });
+    const pmo = readFileSync(join(out, "manifests", "OfficePmo.yaml"), "utf8");
+    expect(pmo).toContain("id: OfficePmo");
+    // Single-line must with colon must be JSON-quoted, not a broken "|\\n  text" list item
+    expect(pmo).not.toMatch(/^\s+- \|\r?\n\s{0,2}[A-Za-z]/m);
+    expect(pmo).toMatch(/Delegate execution only to:/);
+    for (const name of [
+      "OfficeFacade",
+      "OfficePmo",
+      "OfficeScope",
+      "OfficeArchitecture",
+      "OfficeExperience",
+      "OfficeEngineering",
+      "OfficeQuality",
+      "OfficeDeploy",
+      "OfficeProduction",
+      "OfficeImprove",
+    ]) {
+      expect(existsSync(join(out, "manifests", `${name}.yaml`))).toBe(true);
+    }
+  });
+
   test("BYO rules_source_dir copies user rules", () => {
     const out = mkdtempSync(join(tmpdir(), "oa-byo-"));
     const userRules = join(out, "my-rules");
