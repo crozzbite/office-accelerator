@@ -28,21 +28,19 @@ Not Lich / Gentleman / Cerbero. Not your company rulebook. Personality packs sta
 | [Bun](https://bun.sh) | Scaffold / tests / promote (authoring) |
 | VS Code + GitHub Copilot **or** Cursor | Consume offices |
 
-### Clone layout (siblings — no hardcoded user paths)
+### Clone layout (pick ONE profile per machine — do not mix)
 
-> Local workspace note: on this machine the repos are nested under `governance/`.
-> Use `governance/office-accelerator/` for this repo and `governance/SkullRender-Agents/` for runtime MCP.
+**Path policy:** never commit `C:\Users\…`. Prefer `${workspaceFolder}` + `scripts/mcp-offices.ps1`.
+
+#### Profile A — Portable siblings (default / recommended)
+
+Independent clones side by side. Typical on a personal/dev machine.
 
 ```text
 <parent>/
   office-accelerator/     ← this repo
   SkullRender-Agents/     ← runtime MCP
-  governance/             ← optional Capa A clone
-
-or, in this local workspace:
-  governance/
-    office-accelerator/   ← this repo
-    SkullRender-Agents/    ← runtime MCP
+  governance/             ← optional Capa A
 ```
 
 ```powershell
@@ -55,22 +53,33 @@ git clone -b governance/vscode-copilot-ready https://github.com/crozzbite/WorkDe
 cd office-accelerator
 bun install
 bun test
-bun run promote:neutral    # ensures dist/legion-neutral exists
+bun run promote:neutral
 
 cd ..\SkullRender-Agents
 bun install
-bun run bundle             # produces bundle/cli.js
+bun run bundle
 ```
 
-Optional once per machine (only if siblings are not next to each other):
+MCP: copy `templates/mcp.vscode.json.example` → `.vscode/mcp.json` (uses `mcp-offices.ps1`; no user env required if folders are siblings).
+
+#### Profile B — Nested under governance (optional workstation)
+
+Only if Capa A is the workspace root and B/runtime live **inside** it (company/fork machine pattern):
+
+```text
+governance/                 ← Capa A root (WorkDesktop ready branch)
+  office-accelerator/       ← this repo (gitignored by Capa A)
+  SkullRender-Agents/       ← runtime (keep nested; do not assume Profile A paths)
+```
 
 ```powershell
-# Example — set YOUR paths; do not commit these
-[Environment]::SetEnvironmentVariable("SKFLOW_ROOT", "<parent>\office-accelerator\dist\legion-neutral", "User")
-[Environment]::SetEnvironmentVariable("SKFLOW_AGENTS_CLI", "<parent>\SkullRender-Agents\bundle\cli.js", "User")
+# From governance\office-accelerator — sets *this user/machine* env only
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\set-skflow-env.ps1
+# Then restart VS Code / terminals so User env is inherited
 ```
 
-**Path policy:** never commit `C:\Users\…` into git. Prefer `${workspaceFolder}` + `scripts/mcp-offices.ps1`, or env vars above.
+Do **not** run `set-skflow-env.ps1` on a Profile A machine (it would point env at a nested layout you may not have).  
+Do **not** commit machine profile choice into shared “required” steps — keep Profile A as the portable default.
 
 ---
 

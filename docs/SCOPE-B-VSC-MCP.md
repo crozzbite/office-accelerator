@@ -2,39 +2,52 @@
 
 Neutral `Office*` offices for Copilot. **No machine paths in git.**
 
-## Layout (this PC)
+Keep **one layout profile per machine**. Do not document both as if they were the same PC.
+
+## Profile A — Portable siblings (default)
 
 ```
-governance/                  ← root container for this workspace
-  office-accelerator/        ← Capa B scaffold + scripts
-    out/legion-neutral/      ← SKFLOW_ROOT default (gitignored)
+<parent>/
+  office-accelerator/        ← Capa B
+    dist/legion-neutral/     ← preferred SKFLOW_ROOT (shipped)
+    out/legion-neutral/      ← local scaffold (gitignored)
     scripts/mcp-offices.ps1
-    scripts/smoke-offices.ps1
     templates/mcp.vscode.json.example
-  SkullRender-Agents/        ← sibling runtime (bundle/cli.js)
+  SkullRender-Agents/        ← runtime (bundle/cli.js)
+  governance/                ← optional Capa A
 ```
 
-> Note: this local environment uses `governance/office-accelerator/` and `governance/SkullRender-Agents/` together, instead of the external sibling layout described in upstream docs.
+## Profile B — Nested under governance (optional workstation)
 
-## Path precedence
+```
+governance/                  ← Capa A root
+  office-accelerator/        ← Capa B (often gitignored by A)
+  SkullRender-Agents/        ← runtime next to accelerator
+```
+
+Use only on machines that cloned this way. Set user env with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\set-skflow-env.ps1
+```
+
+Do not run that helper on a Profile A machine.
+
+## Path precedence (`mcp-offices.ps1`)
 
 1. `SKFLOW_ROOT` env if set → wins  
-2. Else `<office-accelerator>/out/legion-neutral`  
-3. Agents CLI: `SKFLOW_AGENTS_CLI` else `../SkullRender-Agents/bundle/cli.js` (sibling, no `C:\Users\…`)
+2. Else `dist/legion-neutral` if present  
+3. Else `out/legion-neutral`  
+4. Agents CLI: `SKFLOW_AGENTS_CLI` else `../SkullRender-Agents/bundle/cli.js` relative to accelerator parent
 
-## Register MCP (pick one)
-
-### A) Open only `office-accelerator` as folder
+## Register MCP
 
 ```powershell
 Copy-Item templates\mcp.vscode.json.example .vscode\mcp.json
-# Open this folder in VS Code → ${workspaceFolder}/scripts/mcp-offices.ps1 resolves
+# Open office-accelerator folder (or dual-root workspace) → ${workspaceFolder}/scripts/mcp-offices.ps1
 ```
 
-### B) Dual-root (recommended smoke with Capa A)
-
-Open `vsc-a-plus-b.code-workspace`. Put MCP config on **offices-B** (or user MCP) using the same script under that folder.  
-Opening **only** governance-A → offices tools **unavailable** (fail-loud / expected).
+Dual-root: `vsc-a-plus-b.code-workspace` (Profile A paths). Opening **only** Capa A → no `skflow_*` (fail-loud / expected).
 
 ## Policy
 
@@ -42,8 +55,10 @@ Opening **only** governance-A → offices tools **unavailable** (fail-loud / exp
 - Do not use `skflow_packs_*` / Lich / Gentleman / Cerbero as SoT  
 - Success list ids = `OfficeFacade` … `OfficeImprove` only  
 
-## Smoke Copilot (Fase 3)
+## Smoke
 
-Full prompt: [`SCOPE-B-FASE3-SMOKE.md`](SCOPE-B-FASE3-SMOKE.md)
+```powershell
+bun run smoke:neutral
+```
 
-Recommended: open `vsc-a-plus-b.code-workspace`, confirm MCP `offices-neutral`, paste the prompt from that file.
+Copilot smoke: [`SCOPE-B-FASE3-SMOKE.md`](SCOPE-B-FASE3-SMOKE.md)
