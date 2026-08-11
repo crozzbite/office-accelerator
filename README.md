@@ -30,11 +30,19 @@ Not Lich / Gentleman / Cerbero. Not your company rulebook. Personality packs sta
 
 ### Clone layout (siblings — no hardcoded user paths)
 
+> Local workspace note: on this machine the repos are nested under `governance/`.
+> Use `governance/office-accelerator/` for this repo and `governance/SkullRender-Agents/` for runtime MCP.
+
 ```text
 <parent>/
   office-accelerator/     ← this repo
   SkullRender-Agents/     ← runtime MCP
   governance/             ← optional Capa A clone
+
+or, in this local workspace:
+  governance/
+    office-accelerator/   ← this repo
+    SkullRender-Agents/    ← runtime MCP
 ```
 
 ```powershell

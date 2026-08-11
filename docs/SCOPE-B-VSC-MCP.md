@@ -5,14 +5,16 @@ Neutral `Office*` offices for Copilot. **No machine paths in git.**
 ## Layout (this PC)
 
 ```
-WorkDesktop/                 ← Capa A (governance)
+governance/                  ← root container for this workspace
   office-accelerator/        ← Capa B scaffold + scripts
     out/legion-neutral/      ← SKFLOW_ROOT default (gitignored)
     scripts/mcp-offices.ps1
     scripts/smoke-offices.ps1
     templates/mcp.vscode.json.example
-SkullRender-Agents/          ← sibling runtime (bundle/cli.js)
+  SkullRender-Agents/        ← sibling runtime (bundle/cli.js)
 ```
+
+> Note: this local environment uses `governance/office-accelerator/` and `governance/SkullRender-Agents/` together, instead of the external sibling layout described in upstream docs.
 
 ## Path precedence
 
