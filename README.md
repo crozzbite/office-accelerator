@@ -25,7 +25,7 @@ Not Lich / Gentleman / Cerbero. Not your company rulebook. Personality packs sta
 |------|-----|
 | [Git](https://git-scm.com) | Clone |
 | [Node.js 18+](https://nodejs.org) | Run MCP CLI |
-| [Bun](https://bun.sh) | Scaffold / tests / promote (authoring) |
+| [Bun](https://bun.sh) (preferred) | Scaffold / tests / promote. If `bun install` fails, `npm install` — do not commit `package-lock.json` (canonical lockfile is `bun.lock`) |
 | VS Code + GitHub Copilot **or** Cursor | Consume offices |
 
 ### Clone layout (pick ONE profile per machine — do not mix)
@@ -52,11 +52,13 @@ git clone -b governance/vscode-copilot-ready https://github.com/crozzbite/WorkDe
 
 cd office-accelerator
 bun install
+# if Bun fails: npm install  (do not git-add package-lock.json)
 bun test
 bun run promote:neutral
 
 cd ..\SkullRender-Agents
 bun install
+# if Bun fails: npm install  (do not git-add package-lock.json)
 bun run bundle
 ```
 
@@ -107,6 +109,33 @@ More detail: [`docs/SCOPE-B-VSC-MCP.md`](docs/SCOPE-B-VSC-MCP.md) · Fase 3 smok
 
 `OfficeFacade`, `OfficePmo`, `OfficeScope`, `OfficeArchitecture`, `OfficeExperience`, `OfficeEngineering`, `OfficeQuality`, `OfficeDeploy`, `OfficeProduction`, `OfficeImprove`
 
+### Sae layer — expert subagents (opt-in)
+
+A **Sae** (Sub Agente Experto) is a specialist working *under* one stage office. The office
+still owns the stage handoff; the Sae only produces evidence.
+
+| Rule | Enforced by |
+|------|-------------|
+| A Sae reports to a stage office, never to PMO, Facade, or another Sae | scaffold tests + `smoke:neutral` + `AgentsManager.loadAll` throws |
+| A Sae has no `Task` tool, so it cannot re-delegate | scaffold tests + `smoke:neutral` |
+| A Sae is never a `handoff_owner` | scaffold tests |
+| An office with Saes lists its roster explicitly in `must` | scaffold tests |
+
+Ids are `{id_prefix}Sae{Name}`, so with the default prefix: `OfficeSaeContracts`,
+`OfficeSaeDataModel`, and so on.
+
+The shipped `dist/legion-neutral` stays at **10 offices, zero Saes**. To generate the
+25-manifest tree, use the `sdlc-8-stages-saes` cookbook:
+
+```powershell
+bun run scaffold -- --params params.vsc-neutral.yaml --cookbook sdlc-8-stages-saes --out ./out/legion-saes
+$env:SKFLOW_ROOT = (Resolve-Path ./out/legion-saes)
+bun run smoke:neutral
+```
+
+The roster lives in the cookbook, so a consumer trims it by editing one file rather than
+touching the scaffold.
+
 ---
 
 ## Verify
@@ -117,7 +146,8 @@ bun test
 bun run smoke:neutral
 ```
 
-Expect: `PASS: Office* set (10)` and `PASS: AgentsManager loadAll=10`.
+Expect: `PASS: core Office* set (10) + 0 Sae` and `PASS: AgentsManager loadAll=10`.
+With a Sae cookbook the counts rise to `+ 15 Sae` and `loadAll=25`.
 
 Copilot smoke (with MCP up): paste the prompt in [`docs/SCOPE-B-FASE3-SMOKE.md`](docs/SCOPE-B-FASE3-SMOKE.md).
 
@@ -159,7 +189,10 @@ bun run scaffold -- --params params.example.yaml --cookbook sdlc-8-stages --out 
 | `enable_packs` | Must be `false` |
 | `enable_rules` | `false` for VS Code + Capa A BYO; `true` emits Cursor neutral rules |
 
-Cookbooks: `minimal-triad` · `sdlc-8-stages`
+Cookbooks: `minimal-triad` · `sdlc-8-stages` · `sdlc-8-stages-saes` (adds the 15-Sae roster)
+
+A cookbook declares `saes:` as a map of stage key → Sae keys. Declaring a Sae for a stage
+outside `stages:`, or an unknown Sae key, fails the scaffold instead of emitting an orphan.
 
 ---
 
