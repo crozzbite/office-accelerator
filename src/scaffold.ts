@@ -171,7 +171,7 @@ type Cookbook = {
   description?: string;
   stages?: string[];
   /** stage key → Sae keys from SAE_META. A stage absent here emits no Sae. */
-  saes?: Record<string, string[]>;
+  saes?: unknown;
 };
 
 function argValue(argv: string[], name: string): string | undefined {
@@ -336,7 +336,19 @@ function resolveSaes(
   cookbook: Cookbook,
   stages: string[],
 ): Record<string, string[]> {
-  const declared = cookbook.saes ?? {};
+  if (cookbook.saes === undefined) {
+    return {};
+  }
+  if (
+    cookbook.saes === null ||
+    typeof cookbook.saes !== "object" ||
+    Array.isArray(cookbook.saes)
+  ) {
+    throw new Error(
+      "Cookbook saes must be a map of stage → non-empty Sae key arrays",
+    );
+  }
+  const declared = cookbook.saes as Record<string, unknown>;
   const resolved: Record<string, string[]> = {};
   for (const [stageKey, saeKeys] of Object.entries(declared)) {
     if (!stages.includes(stageKey)) {
@@ -344,7 +356,12 @@ function resolveSaes(
         `Cookbook declares saes for stage "${stageKey}" which is not in stages: ${stages.join(", ")}`,
       );
     }
-    const keys = Array.isArray(saeKeys) ? saeKeys : [];
+    if (!Array.isArray(saeKeys) || saeKeys.length === 0) {
+      throw new Error(
+        `Cookbook saes for stage "${stageKey}" must be a non-empty array`,
+      );
+    }
+    const keys = saeKeys.map((k) => String(k));
     for (const key of keys) {
       const meta = SAE_META[key];
       if (!meta) {

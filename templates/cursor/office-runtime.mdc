@@ -9,5 +9,6 @@ alwaysApply: true
 1. Point MCP root (`SKFLOW_ROOT`) at this target's manifests/schemas.
 2. List offices; resolve identity with **inject_pack: false** always.
 3. Topology: OfficeFacade → OfficePmo → one active stage office at a time.
-4. Personality packs are **not** part of this formula — do not inject branded voices.
-5. Human gates: commit / PR / merge / deploy stay with the human.
+4. Stage offices may own a SAE (Sub Agente Experto) roster. PMO (Project Management Office) must not Task those SAE ids — only the owning stage office may. A SAE never hands off to PMO.
+5. Personality packs are **not** part of this formula — do not inject branded voices.
+6. Human gates: commit / PR / merge / deploy stay with the human.

@@ -38,8 +38,48 @@ $MissingCore = $Core | Where-Object { $_ -notin $Ids }
 if ($MissingCore) { Write-Error "FAIL: missing core ids: $($MissingCore -join ', ')" }
 
 $SaeIds = @($Ids | Where-Object { $_ -like "OfficeSae*" })
+$SaeOfficeIds = @()
+foreach ($Id in $Ids) {
+  $f = Join-Path $ManifestDir "$Id.yaml"
+  if (Select-String -Path $f -Pattern '^office:\s*"?sae"?\s*$' -Quiet) {
+    $SaeOfficeIds += $Id
+  }
+}
+$SaeIds = @($SaeIds + $SaeOfficeIds | Select-Object -Unique)
 $Unexpected = $Ids | Where-Object { $_ -notin $Core -and $_ -notin $SaeIds }
 if ($Unexpected) { Write-Error "FAIL: unexpected ids: $($Unexpected -join ', ')" }
+
+$MetaPath = Join-Path $SkflowRoot "scaffold-meta.json"
+$CookbookId = $null
+if (Test-Path $MetaPath) {
+  $CookbookId = (Get-Content -Raw $MetaPath | ConvertFrom-Json).cookbook
+}
+$CookbookPath = $null
+if ($CookbookId) {
+  $cand = Join-Path $AccelRoot "cookbooks\$CookbookId.yaml"
+  if (Test-Path $cand) { $CookbookPath = $cand }
+}
+$CookbookDeclaresSaes = $false
+$RosterCount = $null
+if ($CookbookPath) {
+  $cbText = Get-Content -Raw $CookbookPath
+  if ($cbText -match '(?m)^saes:\s*') {
+    $CookbookDeclaresSaes = $true
+    $RosterCount = ([regex]::Matches($cbText, '(?m)^    - [a-z0-9_]+')).Count
+  }
+}
+$ExpectSae = $null
+if ($CookbookId -eq "sdlc-8-stages-saes") {
+  $ExpectSae = if ($RosterCount -and $RosterCount -gt 0) { $RosterCount } else { 15 }
+} elseif ($SaeIds.Count -gt 0) {
+  $ExpectSae = if ($RosterCount -and $RosterCount -gt 0) { $RosterCount } else { 15 }
+}
+if ($CookbookDeclaresSaes -and $SaeIds.Count -eq 0) {
+  Write-Error "FAIL: cookbook declared saes: but found 0 Sae manifests under $SkflowRoot"
+}
+if ($null -ne $ExpectSae -and $SaeIds.Count -ne $ExpectSae) {
+  Write-Error "FAIL: expected $ExpectSae Sae manifests, found $($SaeIds.Count)"
+}
 
 foreach ($Sae in $SaeIds) {
   $SaeFile = Join-Path $ManifestDir "$Sae.yaml"
@@ -77,17 +117,25 @@ Write-Host "PASS: core Office* set (10) + $($SaeIds.Count) Sae under $SkflowRoot
 Write-Host "PASS: no experto_*/branded packs; personality_pack_default false"
 
 $AgentsRoot = Join-Path (Split-Path -Parent $AccelRoot) "SkullRender-Agents"
-if ((Test-Path (Join-Path $AgentsRoot "src\agents-manager.ts")) -and (Get-Command bun -ErrorAction SilentlyContinue)) {
+$AgentsSrc = Join-Path $AgentsRoot "src\agents-manager.ts"
+$LoadAllSnippet = "import { AgentsManager } from './src/agents-manager.ts'; const want = Number(process.env.SKFLOW_EXPECTED); const n = new AgentsManager(process.env.SKFLOW_ROOT).loadAll().size; if (n !== want) { console.error('FAIL: loadAll='+n+' want='+want); process.exit(1); } console.log('PASS: AgentsManager loadAll='+n);"
+if (-not (Test-Path $AgentsSrc)) {
+  Write-Error "FAIL: AgentsManager load gate (Agents sibling missing; standalone clone cannot verify Sae Task/parent)"
+} else {
+  # bun is required: the snippet imports TypeScript. Node 18+ (engines) cannot
+  # strip types; --experimental-strip-types needs Node 22.6+ and is not a fallback.
+  $hasBun = [bool](Get-Command bun -ErrorAction SilentlyContinue)
+  if (-not $hasBun) {
+    Write-Error "FAIL: AgentsManager load gate (bun required; Node cannot load TypeScript AgentsManager)"
+  }
   $env:SKFLOW_ROOT = $SkflowRoot
   $env:SKFLOW_EXPECTED = $Ids.Count
   Push-Location $AgentsRoot
   try {
     # loadAll also rejects a Sae whose reports_to is missing or is not a Saep.
-    & bun -e "import { AgentsManager } from './src/agents-manager.ts'; const want = Number(process.env.SKFLOW_EXPECTED); const n = new AgentsManager(process.env.SKFLOW_ROOT).loadAll().size; if (n !== want) { console.error('FAIL: loadAll='+n+' want='+want); process.exit(1); } console.log('PASS: AgentsManager loadAll='+n);"
+    & bun -e $LoadAllSnippet
     if ($LASTEXITCODE -ne 0) { Write-Error "FAIL: YAML load gate" }
   } finally { Pop-Location }
-} else {
-  Write-Host "SKIP: AgentsManager load gate (bun/Agents sibling missing)"
 }
 
 Write-Host "POLICY: inject_pack false; do not use skflow_packs_* as SoT"

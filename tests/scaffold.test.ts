@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import Ajv from "ajv";
 import { scaffold } from "../src/scaffold.ts";
 import { parseSimpleYaml } from "../src/yaml-lite.ts";
 
@@ -9,6 +10,8 @@ const ROOT = join(import.meta.dir, "..");
 const identitySchema = JSON.parse(
   readFileSync(join(ROOT, "schemas", "identity.schema.json"), "utf8"),
 );
+const ajv = new Ajv({ allErrors: true, strict: false });
+const validateIdentity = ajv.compile(identitySchema);
 
 type Manifest = {
   id: string;
@@ -193,18 +196,64 @@ describe("office-accelerator Sae layer", () => {
     }
   });
 
-  test("Sae manifests obey the identity schema surface", () => {
+  test("each emitted Sae validates against identity.schema.json", () => {
     const docs = scaffoldWithSaes();
-    const allowed = new Set(Object.keys(identitySchema.properties));
     for (const sae of docs.filter((d) => d.office === "sae")) {
-      for (const key of Object.keys(sae)) {
-        expect(allowed.has(key)).toBe(true);
+      const ok = validateIdentity(sae);
+      if (!ok) {
+        throw new Error(`identity.schema.json rejected ${sae.id}: ${ajv.errorsText(validateIdentity.errors)}`);
       }
-      for (const required of identitySchema.required) {
-        expect(sae[required as keyof Manifest]).toBeDefined();
-      }
-      expect(identitySchema.properties.office.enum).toContain(sae.office);
+      expect(ok).toBe(true);
     }
+  });
+
+  test("saes entry that is not a non-empty array is rejected", () => {
+    const out = mkdtempSync(join(tmpdir(), "oa-sae-coerce-"));
+    const scalarCookbook = join(out, "scalar.yaml");
+    writeFileSync(
+      scalarCookbook,
+      `id: scalar\nstages:\n  - scope\nsaes:\n  scope: research\n`,
+      "utf8",
+    );
+    expect(() =>
+      scaffold({
+        paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+        cookbookId: "scalar",
+        cookbookPath: scalarCookbook,
+        outDir: join(out, "scalar-out"),
+      }),
+    ).toThrow(/non-empty array/);
+
+    const emptyCookbook = join(out, "empty.yaml");
+    writeFileSync(
+      emptyCookbook,
+      `id: empty\nstages:\n  - scope\nsaes:\n  scope:\n`,
+      "utf8",
+    );
+    expect(() =>
+      scaffold({
+        paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+        cookbookId: "empty",
+        cookbookPath: emptyCookbook,
+        outDir: join(out, "empty-out"),
+      }),
+    ).toThrow(/non-empty array/);
+  });
+
+  test("office-runtime.mdc forbids PMO Task of SAE ids", () => {
+    const out = mkdtempSync(join(tmpdir(), "oa-runtime-"));
+    scaffold({
+      paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+      cookbookId: "sdlc-8-stages-saes",
+      outDir: out,
+    });
+    const runtime = readFileSync(
+      join(out, ".cursor", "rules", "office-runtime.mdc"),
+      "utf8",
+    );
+    expect(runtime).toMatch(/SAE \(Sub Agente Experto\)/);
+    expect(runtime).toMatch(/PMO \(Project Management Office\) must not Task those SAE ids/);
+    expect(runtime).toMatch(/A SAE never hands off to PMO/);
   });
 
   test("Saes declared for a stage outside the cookbook are rejected", () => {

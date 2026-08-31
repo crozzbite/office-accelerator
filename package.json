@@ -14,6 +14,7 @@
   "dependencies": {},
   "devDependencies": {
     "@types/bun": "latest",
+    "ajv": "^8.20.0",
     "typescript": "5.3.3"
   },
   "engines": {
