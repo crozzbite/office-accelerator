@@ -46,4 +46,26 @@ describe("parseSimpleYaml", () => {
     );
     expect(doc.saes).toEqual({ deploy: ["pipeline", "iac"] });
   });
+
+  test("leading document marker does not drop the cookbook", () => {
+    const doc = parseSimpleYaml(
+      `---\nsaes:\n  architecture:\n    - contracts\n`,
+    );
+    expect(doc.saes).toEqual({ architecture: ["contracts"] });
+  });
+
+  test("mid-file document marker does not drop later keys", () => {
+    const doc = parseSimpleYaml(
+      `id: sdlc-8-stages-saes\n---\nstages:\n  - scope\n`,
+    );
+    expect(doc.id).toBe("sdlc-8-stages-saes");
+    expect(doc.stages).toEqual(["scope"]);
+  });
+
+  test("document end marker and marker comments are ignored", () => {
+    const doc = parseSimpleYaml(
+      `--- # cookbook\nsaes:\n  deploy:\n    - pipeline\n...\n`,
+    );
+    expect(doc.saes).toEqual({ deploy: ["pipeline"] });
+  });
 });

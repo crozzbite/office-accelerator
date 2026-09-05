@@ -75,6 +75,10 @@ export function parseSimpleYaml(text: string): Record<string, unknown> {
   for (const raw of text.replace(/\r\n/g, "\n").split("\n")) {
     const trimmed = raw.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
+    // YAML document start/end. Editors and BYO cookbooks insert these;
+    // they are not keys. Treating them as rows made parseMap break and
+    // return {} or drop every key after the marker.
+    if (/^(---|\.\.\.)(\s|$)/.test(trimmed)) continue;
     rows.push({ indent: raw.length - raw.trimStart().length, text: trimmed });
   }
 
