@@ -49,67 +49,86 @@ export function stringifyYaml(doc: unknown, indent = 0): string {
   return JSON.stringify(doc);
 }
 
-/** Tiny subset parser for our params/cookbook YAML (scalars, lists, one-level maps). */
+function parseScalar(raw: string): unknown {
+  const v = raw.trim();
+  if (v === "true") return true;
+  if (v === "false") return false;
+  if (v === "null" || v === "") return null;
+  if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+  if (
+    (v.startsWith('"') && v.endsWith('"')) ||
+    (v.startsWith("'") && v.endsWith("'"))
+  ) {
+    return v.slice(1, -1);
+  }
+  return v;
+}
+
+/**
+ * Tiny subset parser for our params/cookbook YAML: scalars, block lists, and maps
+ * nested up to a list value (`saes: { stage: [sae, ...] }`). Indentation-driven, so
+ * items always attach to the key they sit under. No flow sequences, no block scalars,
+ * no anchors — this is a params reader, not a YAML implementation.
+ */
 export function parseSimpleYaml(text: string): Record<string, unknown> {
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
-  const root: Record<string, unknown> = {};
+  const rows: { indent: number; text: string }[] = [];
+  for (const raw of text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n")) {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    // YAML document start/end. Editors and BYO cookbooks insert these;
+    // they are not keys. Treating them as rows made parseMap break and
+    // return {} or drop every key after the marker.
+    if (/^(---|\.\.\.)(\s|$)/.test(trimmed)) continue;
+    // Directives are also not keys. A leading %YAML row used to make
+    // parseMap break immediately and return {}.
+    if (/^%(YAML|TAG)(\s|$)/.test(trimmed)) continue;
+    rows.push({ indent: raw.length - raw.trimStart().length, text: trimmed });
+  }
+
   let i = 0;
 
-  const parseValue = (raw: string): unknown => {
-    const v = raw.trim();
-    if (v === "true") return true;
-    if (v === "false") return false;
-    if (v === "null" || v === "") return null;
-    if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
-    if (
-      (v.startsWith('"') && v.endsWith('"')) ||
-      (v.startsWith("'") && v.endsWith("'"))
-    ) {
-      return v.slice(1, -1);
-    }
-    return v;
+  const isListItem = (text: string): boolean => text === "-" || text.startsWith("- ");
+
+  const unsupportedRow = (row: string): never => {
+    throw new Error(`Unsupported YAML row: ${row}`);
   };
 
-  while (i < lines.length) {
-    const line = lines[i];
-    i++;
-    if (!line.trim() || line.trim().startsWith("#")) continue;
-    const m = /^([A-Za-z0-9_]+):\s*(.*)$/.exec(line);
-    if (!m) continue;
-    const key = m[1];
-    const rest = m[2];
-    if (rest === "" || rest === "|" || rest === ">") {
-      // list or nested block
-      const items: unknown[] = [];
-      let obj: Record<string, unknown> | null = null;
-      while (i < lines.length) {
-        const n = lines[i];
-        if (!n.trim() || n.trim().startsWith("#")) {
-          i++;
-          continue;
-        }
-        if (/^[A-Za-z0-9_]+:/.test(n) && !n.startsWith(" ") && !n.startsWith("\t")) {
-          break;
-        }
-        const listItem = /^\s+-\s+(.*)$/.exec(n);
-        if (listItem) {
-          items.push(parseValue(listItem[1]));
-          i++;
-          continue;
-        }
-        const nested = /^\s+([A-Za-z0-9_]+):\s*(.*)$/.exec(n);
-        if (nested) {
-          if (!obj) obj = {};
-          obj[nested[1]] = parseValue(nested[2]);
-          i++;
-          continue;
-        }
-        break;
-      }
-      root[key] = items.length ? items : obj ?? (rest === "" ? null : parseValue(rest));
-    } else {
-      root[key] = parseValue(rest);
+  const parseList = (indent: number): unknown[] => {
+    const items: unknown[] = [];
+    while (i < rows.length && rows[i].indent === indent && isListItem(rows[i].text)) {
+      items.push(parseScalar(rows[i].text.replace(/^-\s*/, "")));
+      i++;
     }
-  }
-  return root;
+    return items;
+  };
+
+  const parseMap = (indent: number): Record<string, unknown> => {
+    const obj: Record<string, unknown> = {};
+    while (i < rows.length && rows[i].indent === indent) {
+      const m = /^([A-Za-z0-9_]+):\s*(.*)$/.exec(rows[i].text);
+      if (!m) unsupportedRow(rows[i].text);
+      const [, key, rest] = m;
+      i++;
+      if (/^[|>]/.test(rest.trim())) {
+        throw new Error(`Unsupported YAML block scalar on key '${key}'`);
+      }
+      if (rest !== "") {
+        obj[key] = parseScalar(rest);
+        continue;
+      }
+      if (i >= rows.length || rows[i].indent <= indent) {
+        obj[key] = null;
+        continue;
+      }
+      const childIndent = rows[i].indent;
+      obj[key] = isListItem(rows[i].text)
+        ? parseList(childIndent)
+        : parseMap(childIndent);
+    }
+    return obj;
+  };
+
+  const doc = rows.length ? parseMap(rows[0].indent) : {};
+  if (i < rows.length) unsupportedRow(rows[i].text);
+  return doc;
 }

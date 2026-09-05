@@ -2,12 +2,32 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import Ajv from "ajv";
 import { scaffold } from "../src/scaffold.ts";
+import { parseSimpleYaml } from "../src/yaml-lite.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const identitySchema = JSON.parse(
   readFileSync(join(ROOT, "schemas", "identity.schema.json"), "utf8"),
 );
+const ajv = new Ajv({ allErrors: true, strict: false });
+const validateIdentity = ajv.compile(identitySchema);
+
+type Manifest = {
+  id: string;
+  office: string;
+  stage?: string;
+  reports_to: string;
+  handoff_owner?: boolean;
+  personality_pack_default: boolean;
+  permissions?: { tools?: string[]; mcp?: string[]; skills?: string[]; rules?: string[] };
+  must?: string[];
+  never?: string[];
+};
+
+function readManifests(paths: string[]): Manifest[] {
+  return paths.map((p) => parseSimpleYaml(readFileSync(p, "utf8")) as unknown as Manifest);
+}
 
 function assertManifestRaw(raw: string): void {
   expect(raw).toContain("personality_pack_default: false");
@@ -98,6 +118,201 @@ stage_keys:
       outDir: out,
     });
     expect(result.manifests.length).toBe(10);
+  });
+
+  test("sdlc-8-stages emits no Sae layer and keeps the placeholder must-line", () => {
+    const out = mkdtempSync(join(tmpdir(), "oa-8-nosae-"));
+    const result = scaffold({
+      paramsPath: join(ROOT, "params.example.yaml"),
+      cookbookId: "sdlc-8-stages",
+      outDir: out,
+    });
+    const docs = readManifests(result.manifests);
+    expect(docs.filter((d) => d.office === "sae")).toHaveLength(0);
+    const arch = docs.find((d) => d.id === "OfficeArchitecture")!;
+    expect(arch.must).toContain("Keep Saes under this office reporting here (if any).");
+  });
+});
+
+describe("office-accelerator Sae layer", () => {
+  const EXPECTED_SAES: Record<string, string[]> = {
+    OfficeScope: ["OfficeSaeResearch", "OfficeSaeRequirements"],
+    OfficeArchitecture: ["OfficeSaeContracts", "OfficeSaeDataModel"],
+    OfficeExperience: ["OfficeSaeUx", "OfficeSaeAccessibility"],
+    OfficeEngineering: ["OfficeSaeBackend", "OfficeSaeFrontend"],
+    OfficeQuality: ["OfficeSaeTestStrategy", "OfficeSaeSecurityReview"],
+    OfficeDeploy: ["OfficeSaePipeline", "OfficeSaeIaC"],
+    OfficeProduction: ["OfficeSaeObservability", "OfficeSaeIncident"],
+    OfficeImprove: ["OfficeSaeAutomation"],
+  };
+
+  function scaffoldWithSaes(): Manifest[] {
+    const out = mkdtempSync(join(tmpdir(), "oa-sae-"));
+    const result = scaffold({
+      paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+      cookbookId: "sdlc-8-stages-saes",
+      outDir: out,
+    });
+    return readManifests(result.manifests);
+  }
+
+  test("emits 10 offices plus the full 15-Sae catalog", () => {
+    const docs = scaffoldWithSaes();
+    expect(docs).toHaveLength(25);
+    const saeIds = docs.filter((d) => d.office === "sae").map((d) => d.id).sort();
+    const expected = Object.values(EXPECTED_SAES).flat().sort();
+    expect(saeIds).toEqual(expected);
+  });
+
+  test("every Sae reports to an emitted Saep, never to PMO or another Sae", () => {
+    const docs = scaffoldWithSaes();
+    const saepIds = new Set(docs.filter((d) => d.office === "saep").map((d) => d.id));
+    const saeIds = new Set(docs.filter((d) => d.office === "sae").map((d) => d.id));
+
+    for (const sae of docs.filter((d) => d.office === "sae")) {
+      expect(saepIds.has(sae.reports_to)).toBe(true);
+      expect(sae.reports_to).not.toBe("OfficePmo");
+      expect(saeIds.has(sae.reports_to)).toBe(false);
+      expect(EXPECTED_SAES[sae.reports_to]).toContain(sae.id);
+    }
+  });
+
+  test("no Sae can re-delegate or own a stage handoff", () => {
+    const docs = scaffoldWithSaes();
+    for (const sae of docs.filter((d) => d.office === "sae")) {
+      expect(sae.permissions?.tools ?? []).not.toContain("Task");
+      expect(sae.handoff_owner).toBe(false);
+      expect(sae.personality_pack_default).toBe(false);
+    }
+  });
+
+  test("a Saep with Saes lists its roster instead of the placeholder", () => {
+    const docs = scaffoldWithSaes();
+    for (const [saepId, roster] of Object.entries(EXPECTED_SAES)) {
+      const saep = docs.find((d) => d.id === saepId)!;
+      const must = (saep.must ?? []).join("\n");
+      expect(must).toContain(`Delegate expert work only to: ${roster.join(", ")}.`);
+      expect(must).not.toContain("(if any)");
+    }
+  });
+
+  test("each emitted Sae validates against identity.schema.json", () => {
+    const docs = scaffoldWithSaes();
+    for (const sae of docs.filter((d) => d.office === "sae")) {
+      const ok = validateIdentity(sae);
+      if (!ok) {
+        throw new Error(`identity.schema.json rejected ${sae.id}: ${ajv.errorsText(validateIdentity.errors)}`);
+      }
+      expect(ok).toBe(true);
+    }
+  });
+
+  test("saes entry that is not a non-empty array is rejected", () => {
+    const out = mkdtempSync(join(tmpdir(), "oa-sae-coerce-"));
+    const scalarCookbook = join(out, "scalar.yaml");
+    writeFileSync(
+      scalarCookbook,
+      `id: scalar\nstages:\n  - scope\nsaes:\n  scope: research\n`,
+      "utf8",
+    );
+    expect(() =>
+      scaffold({
+        paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+        cookbookId: "scalar",
+        cookbookPath: scalarCookbook,
+        outDir: join(out, "scalar-out"),
+      }),
+    ).toThrow(/non-empty array/);
+
+    const emptyCookbook = join(out, "empty.yaml");
+    writeFileSync(
+      emptyCookbook,
+      `id: empty\nstages:\n  - scope\nsaes:\n  scope:\n`,
+      "utf8",
+    );
+    expect(() =>
+      scaffold({
+        paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+        cookbookId: "empty",
+        cookbookPath: emptyCookbook,
+        outDir: join(out, "empty-out"),
+      }),
+    ).toThrow(/non-empty array/);
+  });
+
+  test("office-runtime.mdc forbids PMO Task of SAE ids", () => {
+    const out = mkdtempSync(join(tmpdir(), "oa-runtime-"));
+    scaffold({
+      paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+      cookbookId: "sdlc-8-stages-saes",
+      outDir: out,
+    });
+    const runtime = readFileSync(
+      join(out, ".cursor", "rules", "office-runtime.mdc"),
+      "utf8",
+    );
+    expect(runtime).toMatch(/SAE \(Sub Agente Experto\)/);
+    expect(runtime).toMatch(/PMO \(Project Management Office\) must not Task those SAE ids/);
+    expect(runtime).toMatch(/A SAE never hands off to PMO/);
+  });
+
+  test("Saes declared for a stage outside the cookbook are rejected", () => {
+    const out = mkdtempSync(join(tmpdir(), "oa-sae-orphan-"));
+    const cookbook = join(out, "orphan.yaml");
+    writeFileSync(
+      cookbook,
+      `id: orphan\nstages:\n  - scope\nsaes:\n  architecture:\n    - contracts\n`,
+      "utf8",
+    );
+    expect(() =>
+      scaffold({
+        paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+        cookbookId: "orphan",
+        cookbookPath: cookbook,
+        outDir: join(out, "target"),
+      }),
+    ).toThrow(/architecture/);
+  });
+
+  test("unknown Sae keys are rejected", () => {
+    const out = mkdtempSync(join(tmpdir(), "oa-sae-unknown-"));
+    const cookbook = join(out, "unknown.yaml");
+    writeFileSync(
+      cookbook,
+      `id: unknown\nstages:\n  - scope\nsaes:\n  scope:\n    - not_a_real_sae\n`,
+      "utf8",
+    );
+    expect(() =>
+      scaffold({
+        paramsPath: join(ROOT, "params.vsc-neutral.yaml"),
+        cookbookId: "unknown",
+        cookbookPath: cookbook,
+        outDir: join(out, "target"),
+      }),
+    ).toThrow(/not_a_real_sae/);
+  });
+});
+
+describe("office-accelerator packaging", () => {
+  test("scaffold-meta.json lists POSIX paths relative to outDir (no machine users)", () => {
+    const out = mkdtempSync(join(tmpdir(), "oa-meta-"));
+    scaffold({
+      paramsPath: join(ROOT, "params.example.yaml"),
+      cookbookId: "sdlc-8-stages",
+      outDir: out,
+    });
+    const meta = JSON.parse(
+      readFileSync(join(out, "scaffold-meta.json"), "utf8"),
+    ) as { manifests: string[] };
+    expect(meta.manifests).toHaveLength(10);
+    for (const p of meta.manifests) {
+      expect(p.startsWith("manifests/")).toBe(true);
+      expect(p.endsWith(".yaml")).toBe(true);
+      expect(p.includes("\\")).toBe(false);
+    }
+    const raw = JSON.stringify(meta);
+    expect(raw).not.toMatch(/C:\\Users\\|C:\/Users\//);
+    expect(raw).not.toMatch(/OneDrive/i);
   });
 
   test("vsc-neutral Pmo must-lines are valid quoted YAML (no broken | block)", () => {

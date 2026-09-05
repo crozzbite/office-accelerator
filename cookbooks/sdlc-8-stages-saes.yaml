@@ -1,0 +1,35 @@
+id: sdlc-8-stages-saes
+description: Facade + PMO + eight SDLC stage offices, each with expert subagents (pack-free)
+stages:
+  - scope
+  - architecture
+  - experience
+  - engineering
+  - quality
+  - deploy
+  - production
+  - improve
+saes:
+  scope:
+    - research
+    - requirements
+  architecture:
+    - contracts
+    - data_model
+  experience:
+    - ux
+    - accessibility
+  engineering:
+    - backend
+    - frontend
+  quality:
+    - test_strategy
+    - security_review
+  deploy:
+    - pipeline
+    - iac
+  production:
+    - observability
+    - incident
+  improve:
+    - automation
