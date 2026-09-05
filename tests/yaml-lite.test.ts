@@ -68,4 +68,65 @@ describe("parseSimpleYaml", () => {
     );
     expect(doc.saes).toEqual({ deploy: ["pipeline"] });
   });
+
+  test("leading UTF-8 BOM does not drop stages or saes", () => {
+    const doc = parseSimpleYaml(
+      `\uFEFFid: sdlc-8-stages-saes
+description: Facade + PMO + eight SDLC stage offices
+stages:
+  - scope
+  - architecture
+saes:
+  architecture:
+    - contracts
+`,
+    );
+    expect(doc.id).toBe("sdlc-8-stages-saes");
+    expect(doc.stages).toEqual(["scope", "architecture"]);
+    expect(doc.saes).toEqual({ architecture: ["contracts"] });
+  });
+
+  test("YAML version directive does not drop later keys", () => {
+    const doc = parseSimpleYaml(
+      `%YAML 1.1
+%TAG ! tag:example.com,2000:
+---
+id: demo
+saes:
+  architecture:
+    - contracts
+`,
+    );
+    expect(doc.id).toBe("demo");
+    expect(doc.saes).toEqual({ architecture: ["contracts"] });
+  });
+
+  test("leftover non-key row does not silently drop later saes", () => {
+    expect(() =>
+      parseSimpleYaml(
+        `id: demo
+not a key
+saes:
+  architecture:
+    - contracts
+`,
+      ),
+    ).toThrow(/Unsupported YAML/i);
+  });
+
+  test("block scalar does not silently omit later saes", () => {
+    expect(() =>
+      parseSimpleYaml(
+        `id: sdlc-8-stages-saes
+description: |
+  Facade + PMO
+stages:
+  - scope
+saes:
+  architecture:
+    - contracts
+`,
+      ),
+    ).toThrow(/block scalar|Unsupported YAML/i);
+  });
 });

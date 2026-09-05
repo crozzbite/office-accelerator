@@ -72,19 +72,26 @@ function parseScalar(raw: string): unknown {
  */
 export function parseSimpleYaml(text: string): Record<string, unknown> {
   const rows: { indent: number; text: string }[] = [];
-  for (const raw of text.replace(/\r\n/g, "\n").split("\n")) {
+  for (const raw of text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n")) {
     const trimmed = raw.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
     // YAML document start/end. Editors and BYO cookbooks insert these;
     // they are not keys. Treating them as rows made parseMap break and
     // return {} or drop every key after the marker.
     if (/^(---|\.\.\.)(\s|$)/.test(trimmed)) continue;
+    // Directives are also not keys. A leading %YAML row used to make
+    // parseMap break immediately and return {}.
+    if (/^%(YAML|TAG)(\s|$)/.test(trimmed)) continue;
     rows.push({ indent: raw.length - raw.trimStart().length, text: trimmed });
   }
 
   let i = 0;
 
   const isListItem = (text: string): boolean => text === "-" || text.startsWith("- ");
+
+  const unsupportedRow = (row: string): never => {
+    throw new Error(`Unsupported YAML row: ${row}`);
+  };
 
   const parseList = (indent: number): unknown[] => {
     const items: unknown[] = [];
@@ -99,9 +106,12 @@ export function parseSimpleYaml(text: string): Record<string, unknown> {
     const obj: Record<string, unknown> = {};
     while (i < rows.length && rows[i].indent === indent) {
       const m = /^([A-Za-z0-9_]+):\s*(.*)$/.exec(rows[i].text);
-      if (!m) break;
+      if (!m) unsupportedRow(rows[i].text);
       const [, key, rest] = m;
       i++;
+      if (/^[|>]/.test(rest.trim())) {
+        throw new Error(`Unsupported YAML block scalar on key '${key}'`);
+      }
       if (rest !== "") {
         obj[key] = parseScalar(rest);
         continue;
@@ -118,5 +128,7 @@ export function parseSimpleYaml(text: string): Record<string, unknown> {
     return obj;
   };
 
-  return rows.length ? parseMap(rows[0].indent) : {};
+  const doc = rows.length ? parseMap(rows[0].indent) : {};
+  if (i < rows.length) unsupportedRow(rows[i].text);
+  return doc;
 }
